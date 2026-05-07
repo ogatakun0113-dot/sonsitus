@@ -14,13 +14,23 @@ st.markdown("""
 st.markdown('<p class="credit">開発/制作：緒方</p>', unsafe_allow_html=True)
 st.title('📡 同軸ケーブル損失計算')
 
-# データ定義
-cable_ref = {
+# --- データ定義 ---
+# 50Ω系ケーブル
+cable_50 = {
     "5D-2V": {"freq": 400.0, "loss_10m": 1.7},
     "5D-FB": {"freq": 400.0, "loss_10m": 1.1},
     "8D-FB": {"freq": 400.0, "loss_10m": 0.8},
     "10D-FB": {"freq": 400.0, "loss_10m": 0.65},
     "RG-58A/U": {"freq": 400.0, "loss_10m": 3.8}
+}
+
+# 75Ω系ケーブル
+cable_75 = {
+    "3C-2V": {"freq": 400.0, "loss_10m": 3.0},
+    "5C-2V": {"freq": 400.0, "loss_10m": 1.9},
+    "5C-FB": {"freq": 400.0, "loss_10m": 1.3},
+    "7C-FB": {"freq": 400.0, "loss_10m": 0.96},
+    "RG-59B/U": {"freq": 400.0, "loss_10m": 3.4}
 }
 
 preset_freqs = {
@@ -32,12 +42,23 @@ preset_freqs = {
     "自由入力": 0.0
 }
 
+# --- 入力セクション ---
+# インピーダンス選択
+imp_choice = st.radio("インピーダンス (Ω) を選択", [50, 75], horizontal=True)
+
 col1, col2 = st.columns(2)
 with col1:
-    cable_type = st.selectbox("同軸ケーブル型番", list(cable_ref.keys()))
+    if imp_choice == 50:
+        cable_type = st.selectbox("同軸ケーブル型番 (50Ω)", list(cable_50.keys()))
+        ref_data = cable_50[cable_type]
+    else:
+        cable_type = st.selectbox("同軸ケーブル型番 (75Ω)", list(cable_75.keys()))
+        ref_data = cable_75[cable_type]
+
 with col2:
     freq_mode = st.selectbox("周波数区分", list(preset_freqs.keys()), index=0)
 
+# 周波数の確定
 if freq_mode == "自由入力":
     target_freq = st.number_input("周波数 (MHz)", value=70.000, format="%.3f")
 else:
@@ -46,11 +67,12 @@ else:
 
 length = st.number_input("長さ (m)", value=10.0, step=1.0, format="%.1f")
 
-# 計算ロジック
-ref_freq = cable_ref[cable_type]["freq"]
-ref_loss = cable_ref[cable_type]["loss_10m"] / 10.0
+# --- 計算ロジック ---
+ref_freq = ref_data["freq"]
+ref_loss = ref_data["loss_10m"] / 10.0 # 1mあたりの損失(dB)
 
 if target_freq > 0:
+    # 損失は概ね√fに比例
     calc_loss_per_m = ref_loss * math.sqrt(target_freq / ref_freq)
     total_loss = calc_loss_per_m * length
 else:
@@ -59,8 +81,8 @@ else:
 st.markdown('<div class="result-box">', unsafe_allow_html=True)
 st.subheader("📊 計算結果")
 st.metric("合計損失 (推定値)", f"-{total_loss:.2f} dB")
-st.write(f"条件: {cable_type} / {target_freq} MHz / {length} m")
+st.write(f"条件: {imp_choice}Ω / {cable_type} / {target_freq} MHz / {length} m")
 st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("※標準特性に基づく近似値です。接栓損失は別途加算してください。")
+st.caption("※標準特性に基づく近似値です。50Ωと75Ωの混在によるミスマッチ損失は含まれません。")
